@@ -9,6 +9,7 @@ WriteMakefile(
     ABSTRACT_FROM       => 'lib/Crypt/Juniper.pm',
     PL_FILES            => {},
     PREREQ_PM => {
+        'Test::Exception' => 0,
         'Test::More' => 0,
         'Carp' => 0,
     },

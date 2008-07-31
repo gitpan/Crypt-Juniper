@@ -13,11 +13,11 @@ Crypt::Juniper - Encrypt/decrypt Juniper $9$ secrets
 
 =head1 VERSION
 
-Version 0.01
+Version 0.02
 
 =cut
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 
 =head1 SYNOPSIS
@@ -80,27 +80,21 @@ my @ENCODING = (
 =head2 juniper_decrypt($crypt)
 
 Decrypt the string C<$crypt>, returning the corresponding plain-text.
-Input string must be of the format "$9$blahblah".  If the input string is
-not in a recognized format, the function throws a warning and returns
-undef.
+Input string must be of the format "$9$blahblah".  This function will
+die() if there any processing errors.
 
 =cut
 
 sub juniper_decrypt {
     my ($crypt) = @_;
 
-    unless (defined $crypt and $crypt =~ $VALID)
-    {
-        carp "Invalid Juniper crypt string!";
-        return undef;
-    }
+    croak "Invalid Juniper crypt string!"
+        unless (defined $crypt and $crypt =~ $VALID);
 
-    my ($chars) = $crypt =~ /^\Q$MAGIC\E(\S+)/ or return undef;
-    my ($first) = substr($chars, 0, 1, '');
+    my ($chars) = $crypt =~ /^\Q$MAGIC\E(\S+)/;
 
-    my $extra = $EXTRA{$first};
-    defined $extra or die "Invalid character '$first'";
-    substr($chars, 0, $extra, '');
+    my $first = _nibble(\$chars, 1);
+    _nibble(\$chars, $EXTRA{$first});
 
     my $prev = $first;
     my $decrypt = '';
@@ -109,17 +103,22 @@ sub juniper_decrypt {
     {
         my $decode = $ENCODING[ length($decrypt) % @ENCODING ];
         my $len = @$decode;
-        length $chars >= $len
-            or die "Not enough characters left in '$chars' for decode length '$len'";
 
-        my $nibble = substr($chars, 0, $len, '');
-        my @nibble = split //, $nibble;
+        my @nibble = split //, _nibble(\$chars, $len);
         my @gaps = map { my $g = _gap($prev, $_); $prev = $_ ; $g } @nibble;
 
         $decrypt .= _gap_decode(\@gaps, $decode);
     }
 
     return $decrypt;
+}
+
+sub _nibble {
+    my ($cref, $len) = @_;
+    my $nib = substr($$cref, 0, $len, '');
+    length($nib) == $len
+        or croak "Ran out of characters: hit '$nib', expecting $len chars";
+    return $nib;
 }
 
 ###################################
